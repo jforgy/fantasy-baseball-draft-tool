@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasy Baseball Draft Board</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            font-size: 13px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 12px;
+        }
+
+        .controls {
+            background: white;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            min-width: 200px;
+        }
+
+        .select-box {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            background: white;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #2196F3;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #ccc;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .position-filters {
+            display: flex;
+            gap: 4px;
+        }
+
+        .pos-btn {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .pos-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .pos-btn.active {
+            background: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1400px;
+        }
+
+        th {
+            background: #f8f9fa;
+            padding: 8px 6px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        th:hover {
+            background: #e9ecef;
+        }
+
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.3;
+        }
+
+        th.sorted-asc::after {
+            content: ' ▲';
+            opacity: 1;
+        }
+
+        th.sorted-desc::after {
+            content: ' ▼';
+            opacity: 1;
+        }
+
+        td {
+            padding: 6px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 12px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        tr.drafted {
+            opacity: 0.4;
+        }
+
+        .draft-col {
+            background: #f0f0f0;
+            font-weight: 500;
+        }
+
+        .name-cell {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .team-badge {
+            display: inline-block;
+            font-size: 10px;
+            color: #666;
+            margin-left: 4px;
+        }
+
+        .pos-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
+        .draft-btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .draft-btn.add {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .draft-btn.add:hover {
+            background: #45a049;
+        }
+
+        .draft-btn.remove {
+            background: #f44336;
+            color: white;
+        }
+
+        .draft-btn.remove:hover {
+            background: #da190b;
+        }
+
+        /* Position colors */
+        .pos-C { background: #FFE6E6; }
+        .pos-1B { background: #FFE6CC; }
+        .pos-2B { background: #FFF4CC; }
+        .pos-3B { background: #E6F7FF; }
+        .pos-SS { background: #F0E6FF; }
+        .pos-CF { background: #FFE6F7; }
+        .pos-LF { background: #E6FFE6; }
+        .pos-RF { background: #E6FFFF; }
+        .pos-UT { background: #FFFFCC; }
+        .pos-SP { background: #FFD9CC; }
+        .pos-RP { background: #FFB3BA; }
+        .pos-P { background: #FFC8DD; }
+
+        /* Stat highlighting */
+        .stat-high { background: #d4edda; color: #155724; }
+        .stat-med { background: #fff3cd; color: #856404; }
+        .stat-low { background: #f8d7da; color: #721c24; }
+        .stat-neutral { background: transparent; }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        const POSITIONS = ['All', 'C', '1B', '2B', '3B', 'CF', 'LF', 'RF', 'SS', 'UT', 'SP', 'RP', 'P'];
+        
+        // CSV data will be inserted here
+        const CSV_DATA = `Rank,ADP,$,mlbam_id,Name,Position,Team,Age,PA,AVG,R,RBI,HR,SB,OPS,SO,BB,IP,W,SO,ERA,WHIP,SV,BB,K/9,HLD,IP
+1,1,95,"660271","Shohei Ohtani","UT/SP","LAD",31,671,0.281,124,115,47,24,0.979,161,92,109,8,130,3.47,1.14,,37,10.73,,109
+2,2,76,"592450","Aaron Judge","RF","NYY",33,639,0.289,108,114,46,9,1.025,158,111,,,,,,,,,,
+3,4,72,"665742","Juan Soto","RF","NYM",27,670,0.273,108,99,37,20,0.938,119,123,,,,,,,,,,
+4,7,70,"669373","Tarik Skubal","SP","DET",29,,,,,,,,,,188,14,229,2.73,0.98,,39,10.96,,188
+5,3,57,"677951","Bobby Witt Jr.","SS","KCR",25,664,0.291,102,93,29,34,0.861,113,49,,,,,,,,,,
+6,11,56,"694973","Paul Skenes","SP","PIT",23,,,,,,,,,,182,13,217,2.82,1.04,,47,10.73,,182
+7,7,54,"660670","Ronald Acuña Jr.","RF","ATL",28,631,0.283,104,83,29,24,0.885,131,85,,,,,,,,,,
+8,19,53,"665489","Vladimir Guerrero Jr.","1B","TOR",27,660,0.296,95,98,31,5,0.898,89,74,,,,,,,,,,
+9,12,52,"676979","Garrett Crochet","SP","BOS",26,,,,,,,,,,177,13,218,3.00,1.07,,46,11.08,,177
+10,6,51,"608070","José Ramírez","3B","CLE",33,652,0.272,90,89,27,33,0.823,76,63,,,,,,,,,,
+11,14,50,"663656","Kyle Tucker","RF","LAD",29,622,0.267,94,92,30,21,0.864,91,82,,,,,,,,,,
+12,38,44,"670541","Yordan Alvarez","UT","HOU",28,562,0.294,84,89,31,4,0.939,95,70,,,,,,,,,,
+13,15,43,"665487","Fernando Tatis Jr.","RF","SDP",27,644,0.270,98,82,29,25,0.836,127,70,,,,,,,,,,
+14,9,41,"682998","Corbin Carroll","RF","ARI",25,618,0.258,98,81,26,33,0.834,130,65,,,,,,,,,,
+15,14,41,"683002","Gunnar Henderson","SS","BAL",24,658,0.272,97,88,27,22,0.834,139,68,,,,,,,,,,
+16,10,38,"677594","Julio Rodríguez","CF","SEA",25,662,0.273,93,93,30,26,0.815,145,48,,,,,,,,,,
+17,44,37,"519242","Chris Sale","SP","ATL",37,,,,,,,,,,156,11,190,3.23,1.10,,42,10.96,,156
+18,17,36,"691406","Junior Caminero","3B","TBR",22,641,0.272,86,107,37,6,0.835,123,43,,,,,,,,,,
+19,38,36,"693433","Bryan Woo","SP","SEA",26,,,,,,,,,,182,12,186,3.46,1.07,,39,9.20,,182
+20,36,35,"669302","Logan Gilbert","SP","SEA",28,,,,,,,,,,165,11,185,3.44,1.07,,39,10.09,,165
+21,9,35,"682829","Elly De La Cruz","SS","CIN",24,648,0.260,93,81,24,40,0.792,172,62,,,,,,,,,,
+22,26,35,"656941","Kyle Schwarber","UT","PHI",33,661,0.230,97,103,42,6,0.847,186,97,,,,,,,,,,
+23,34,34,"606466","Ketel Marte","2B","ARI",32,629,0.273,90,87,27,6,0.840,104,68,,,,,,,,,,
+24,50,33,"547180","Bryce Harper","1B","PHI",33,616,0.271,84,88,27,10,0.850,131,75,,,,,,,,,,
+25,55,31,"605141","Mookie Betts","SS","LAD",33,633,0.269,90,81,22,9,0.800,75,67,,,,,,,,,,
+26,18,31,"663728","Cal Raleigh","C","SEA",29,621,0.231,85,100,39,8,0.823,167,75,,,,,,,,,,
+27,50,30,"594798","Jacob deGrom","SP","TEX",37,,,,,,,,,,157,10,175,3.55,1.06,,38,10.03,,157
+28,30,30,"650911","Cristopher Sánchez","SP","PHI",29,,,,,,,,,,189,13,184,3.24,1.15,,47,8.76,,189
+29,18,30,"701762","Nick Kurtz","1B","ATH",23,603,0.258,92,96,36,3,0.868,177,70,,,,,,,,,,
+30,20,29,"694192","Jackson Chourio","LF/CF/RF","MIL",22,639,0.270,86,85,24,24,0.778,129,40,,,,,,,,,,
+31,48,29,"668881","Hunter Greene","SP","CIN",26,,,,,,,,,,169,10,203,3.67,1.12,,55,10.81,,169
+32,67,29,"518692","Freddie Freeman","1B","LAD",36,627,0.277,85,86,22,8,0.823,116,65,,,,,,,,,,
+33,50,28,"666142","Cole Ragans","SP","KCR",28,,,,,,,,,,155,11,191,3.37,1.15,,55,11.09,,155
+34,45,28,"694671","Wyatt Langford","LF/CF","TEX",24,623,0.254,86,76,24,22,0.793,143,73,,,,,,,,,,
+35,72,28,"657746","Joe Ryan","SP","MIN",29,,,,,,,,,,170,11,187,3.81,1.10,,40,9.90,,170
+36,30,28,"695243","Mason Miller","RP","SDP",27,,,,,,,,,,65,4,102,2.49,0.98,32,25,14.12,3,65
+37,50,28,"667670","Brent Rooker","RF","ATH",31,641,0.262,87,97,33,6,0.837,162,61,,,,,,,,,,
+38,26,27,"624413","Pete Alonso","1B","BAL",31,651,0.255,86,102,36,2,0.831,149,60,,,,,,,,,,
+39,27,27,"808967","Yoshinobu Yamamoto","SP","LAD",27,,,,,,,,,,157,12,170,3.32,1.13,,47,9.75,,157
+40,62,27,"657277","Logan Webb","SP","SFG",29,,,,,,,,,,194,13,184,3.29,1.18,,45,8.54,,194
+41,68,27,"669923","George Kirby","SP","SEA",28,,,,,,,,,,172,12,169,3.61,1.11,,33,8.84,,172
+42,19,26,"596019","Francisco Lindor","SS","NYM",32,620,0.257,88,77,25,22,0.779,114,54,,,,,,,,,,
+43,124,26,"554430","Zack Wheeler","SP","PHI",35,,,,,,,,,,134,10,152,3.29,1.08,,36,10.21,,134
+44,34,26,"695578","James Wood","LF","WSN",23,641,0.259,87,81,26,17,0.809,186,75,,,,,,,,,,
+45,28,25,"607208","Trea Turner","SS","PHI",32,620,0.280,85,71,18,26,0.769,113,40,,,,,,,,,,
+46,97,24,"608369","Corey Seager","SS","TEX",31,552,0.272,75,81,27,3,0.854,102,61,,,,,,,,,,
+47,40,23,"686613","Hunter Brown","SP","HOU",27,,,,,,,,,,177,12,192,3.46,1.19,,59,9.76,,177
+48,55,23,"646240","Rafael Devers","1B","SFG",29,660,0.250,89,90,30,2,0.812,161,82,,,,,,,,,,
+49,31,23,"621242","Edwin Díaz","RP","LAD",32,,,,,,,,,,66,5,91,3.00,1.06,37,23,12.41,4,66
+50,133,22,"650490","Yandy Díaz","1B","TBR",34,625,0.286,79,76,20,2,0.807,93,59,,,,,,,,,,
+51,76,22,"672695","Geraldo Perdomo","SS","ARI",26,647,0.261,86,63,13,20,0.746,86,76,,,,,,,,,,
+52,82,22,"666200","Jesús Luzardo","SP","PHI",28,,,,,,,,,,175,12,194,3.70,1.18,,55,9.98,,175
+53,71,22,"672580","Maikel Garcia","SS/3B","KCR",26,642,0.270,82,66,13,26,0.735,94,54,,,,,,,,,,
+54,20,21,"665862","Jazz Chisholm Jr.","2B/3B","NYY",28,579,0.239,78,77,27,31,0.761,153,56,,,,,,,,,,
+55,48,21,"621566","Matt Olson","1B","ATL",32,664,0.249,88,91,30,1,0.804,159,79,,,,,,,,,,
+56,54,21,"661388","William Contreras","C","MIL",28,595,0.266,74,76,19,6,0.785,114,68,,,,,,,,,,
+57,42,20,"671922","Cade Smith","RP","CLE",26,,,,,,,,,,68,5,88,2.91,1.07,29,21,11.65,4,68
+58,97,20,"543807","George Springer","RF","TOR",36,585,0.257,82,74,24,13,0.788,113,59,,,,,,,,,,
+59,56,20,"608331","Max Fried","SP","NYY",32,,,,,,,,,,181,13,171,3.38,1.18,,54,8.50,,181
+60,30,20,"687263","Zach Neto","SS","LAA",25,623,0.251,84,77,26,27,0.768,151,43,,,,,,,,,,
+61,80,20,"656302","Dylan Cease","SP","TOR",30,,,,,,,,,,171,11,202,3.68,1.21,,65,10.63,,171
+62,39,19,"592518","Manny Machado","3B","SDP",33,621,0.263,77,86,26,9,0.773,121,51,,,,,,,,,,
+63,32,19,"691718","Pete Crow-Armstrong","CF","CHC",24,621,0.250,84,80,24,34,0.741,150,35,,,,,,,,,,
+64,65,19,"647304","Josh Naylor","1B","SEA",28,601,0.261,71,82,22,16,0.761,90,50,,,,,,,,,,
+65,76,18,"641355","Cody Bellinger","LF/CF/RF","NYY",30,598,0.257,76,79,23,11,0.762,91,50,,,,,,,,,,
+66,55,18,"701350","Roman Anthony","LF/RF","BOS",21,603,0.264,83,69,18,9,0.796,149,76,,,,,,,,,,
+67,169,18,"680757","Steven Kwan","LF","CLE",28,653,0.274,81,57,9,18,0.718,59,59,,,,,,,,,,
+68,79,18,"686469","Vinnie Pasquantino","1B","KCR",28,632,0.261,75,90,26,1,0.784,92,53,,,,,,,,,,
+69,96,17,"601713","Nick Pivetta","SP","SDP",33,,,,,,,,,,174,11,189,3.98,1.17,,53,9.78,,174
+70,110,17,"695505","Chase Burns","SP","CIN",23,,,,,,,,,,133,8,157,3.59,1.16,,41,10.62,1,133
+71,40,17,"661395","Jhoan Duran","RP","PHI",28,,,,,,,,,,66,5,77,2.86,1.09,30,20,10.50,4,66
+72,79,16,"682985","Riley Greene","LF/CF","DET",25,628,0.258,82,88,28,4,0.796,174,57,,,,,,,,,,
+73,134,16,"543243","Sonny Gray","SP","BOS",36,,,,,,,,,,166,11,173,3.74,1.20,,44,9.38,,166
+74,73,16,"680776","Jarren Duran","LF/CF","BOS",29,604,0.260,82,68,16,23,0.763,140,49,,,,,,,,,,
+75,74,16,"623352","Josh Hader","RP","HOU",31,,,,,,,,,,63,4,86,3.29,1.08,32,24,12.29,3,63
+76,75,16,"621439","Byron Buxton","CF","MIN",32,552,0.248,81,77,29,16,0.807,151,43,,,,,,,,,,
+77,203,16,"643377","Griffin Jax","RP","TBR",31,,,,,,,,,,66,4,83,3.00,1.09,13,19,11.32,12,66
+78,118,16,"605540","Brandon Woodruff","SP","MIL",33,,,,,,,,,,150,10,157,3.84,1.13,,41,9.42,,150
+79,101,16,"666182","Bo Bichette","SS","NYM",28,622,0.286,77,78,18,6,0.772,102,39,,,,,,,,,,
+80,96,15,"673548","Seiya Suzuki","RF","CHC",31,605,0.254,78,83,25,8,0.790,152,64,,,,,,,,,,
+81,117,15,"514888","Jose Altuve","2B/LF","HOU",35,612,0.261,77,72,20,12,0.749,106,51,,,,,,,,,,
+82,102,15,"605483","Blake Snell","SP","LAD",33,,,,,,,,,,141,11,173,3.57,1.23,,61,11.04,,141
+83,41,15,"662253","Andrés Muñoz","RP","SEA",27,,,,,,,,,,64,4,81,2.95,1.13,31,25,11.39,4,64
+84,71,15,"663586","Austin Riley","3B","ATL",28,630,0.260,82,89,28,3,0.788,163,48,,,,,,,,,,
+85,65,15,"642207","Devin Williams","RP","NYM",31,,,,,,,,,,65,4,85,3.05,1.14,31,27,11.77,4,65
+86,103,14,"675911","Spencer Strider","SP","ATL",27,,,,,,,,,,157,11,184,3.96,1.21,,55,10.55,,157
+87,132,14,"592885","Christian Yelich","LF","MIL",34,589,0.256,74,73,19,16,0.754,143,65,,,,,,,,,,
+88,55,14,"669127","Shea Langeliers","C","ATH",28,513,0.253,69,77,28,6,0.801,116,38,,,,,,,,,,
+89,102,14,"669257","Will Smith","C","LAD",31,495,0.259,67,68,20,3,0.809,95,57,,,,,,,,,,
+90,94,14,"665161","Jeremy Peña","SS","HOU",28,633,0.272,81,70,18,17,0.747,113,37,,,,,,,,,,
+91,63,14,"682928","CJ Abrams","SS","WSN",25,620,0.251,80,67,18,31,0.726,118,39,,,,,,,,,,
+92,70,14,"701538","Jackson Merrill","CF","SDP",22,600,0.269,77,79,22,8,0.778,116,40,,,,,,,,,,
+93,114,14,"608324","Alex Bregman","3B","CHC",32,638,0.250,79,77,21,2,0.750,90,66,,,,,,,,,,
+94,448,13,"669093","Jeremiah Estrada","RP","SDP",27,,,,,,,,,,68,4,92,3.31,1.15,1,28,12.18,20,68
+95,59,13,"642547","Freddy Peralta","SP","NYM",29,,,,,,,,,,165,12,182,3.87,1.21,,62,9.93,,165
+96,50,13,"700250","Ben Rice","C/1B","NYY",27,513,0.245,70,72,25,4,0.801,108,52,,,,,,,,,,
+97,55,13,"668930","Brice Turang","2B","MIL",26,642,0.257,79,64,14,29,0.708,133,59,,,,,,,,,,
+98,63,13,"547973","Aroldis Chapman","RP","BOS",38,,,,,,,,,,60,4,83,3.00,1.17,31,28,12.45,3,60
+99,134,13,"686218","Emmet Sheehan","SP","LAD",26,,,,,,,,,,138,9,159,3.85,1.17,,48,10.37,1,138
+100,179,13,"805779","Jacob Wilson","SS","ATH",24,589,0.295,71,68,11,5,0.758,49,33,,,,,,,,,,
+101,184,12,"664023","Ian Happ","LF","CHC",31,638,0.240,80,76,22,8,0.755,151,79,,,,,,,,,,
+102,127,12,"607192","Tyler Glasnow","SP","LAD",32,,,,,,,,,,132,9,154,3.68,1.18,,49,10.50,,132
+103,92,12,"668227","Randy Arozarena","LF","SEA",31,643,0.233,81,74,22,23,0.737,169,64,,,,,,,,,,
+104,63,12,"670280","David Bednar","RP","NYY",31,,,,,,,,,,63,4,76,3.29,1.11,31,21,10.86,3,63
+105,243,12,"650402","Gleyber Torres","2B","DET",29,645,0.258,79,69,18,6,0.747,111,72,,,,,,,,,,
+106,154,12,"621493","Taylor Ward","LF","BAL",32,618,0.244,79,81,26,5,0.768,151,64,,,,,,,,,,
+107,92,12,"664285","Framber Valdez","SP","DET",32,,,,,,,,,,188,13,174,3.49,1.23,,62,8.33,,188
+108,158,12,"543135","Nathan Eovaldi","SP","TEX",36,,,,,,,,,,160,10,153,3.77,1.17,,42,8.61,,160
+109,253,12,"650556","Bryan Abreu","RP","HOU",28,,,,,,,,,,67,4,89,3.22,1.16,5,28,11.96,16,67
+110,73,12,"680694","Kyle Bradish","SP","BAL",29,,,,,,,,,,142,9,151,3.61,1.19,,45,9.57,,142
+111,270,11,"650333","Luis Arraez","1B","SFG",28,609,0.303,71,56,5,8,0.732,26,33,,,,,,,,,,
+112,190,11,"595777","Jurickson Profar","LF","ATL",33,600,0.249,75,67,17,9,0.741,98,67,,,,,,,,,,
+113,142,11,"641154","Pablo López","SP","MIN",30,,,,,,,,,,162,10,161,3.83,1.20,,42,8.94,,162
+114,129,11,"642715","Willy Adames","SS","SFG",30,652,0.234,82,83,27,11,0.746,164,70,,,,,,,,,,
+115,379,11,"691799","Grant Taylor","RP","CHW",23,,,,,,,,,,79,4,93,3.19,1.20,6,30,10.59,16,79
+116,176,11,"676475","Alec Burleson","1B/LF/RF","STL",27,575,0.269,65,73,20,6,0.756,81,40,,,,,,,,,,
+117,109,11,"663538","Nico Hoerner","2B","CHC",28,579,0.278,69,54,7,24,0.710,55,37,,,,,,,,,,
+118,136,11,"807712","Luke Keaschall","2B","MIN",23,542,0.265,68,56,11,23,0.747,93,51,,,,,,,,,,
+119,102,10,"671739","Michael Harris II","CF","ATL",25,557,0.271,70,71,20,18,0.754,108,25,,,,,,,,,,
+120,87,10,"691016","Tyler Soderstrom","1B/LF","ATH",24,577,0.255,72,80,24,5,0.774,135,49,,,,,,,,,,
+121,149,10,"607043","Brandon Nimmo","LF","TEX",33,615,0.251,78,70,21,9,0.752,134,59,,,,,,,,,,
+122,166,10,"656305","Matt Chapman","3B","SFG",32,613,0.236,79,76,24,9,0.759,152,69,,,,,,,,,,
+123,111,10,"683737","Michael Busch","1B","CHC",28,578,0.249,76,78,26,3,0.793,144,59,,,,,,,,,,
+124,126,10,"676059","Jordan Westburg","2B/3B","BAL",27,579,0.259,78,76,24,6,0.772,130,38,,,,,,,,,,
+125,134,10,"681624","Andy Pages","LF/CF/RF","LAD",25,576,0.255,73,79,24,9,0.760,126,36,,,,,,,,,,
+126,138,10,"606192","Teoscar Hernández","RF","LAD",33,565,0.260,73,85,27,6,0.785,148,37,,,,,,,,,,
+127,96,10,"665833","Oneil Cruz","CF","PIT",27,528,0.238,70,65,22,27,0.764,159,55,,,,,,,,,,
+128,152,9,"671056","Iván Herrera","UT","STL",25,545,0.268,69,64,17,9,0.781,108,55,,,,,,,,,,
+129,131,9,"656730","Trevor Megill","RP","MIL",32,,,,,,,,,,65,4,80,3.46,1.17,16,24,11.08,10,65
+130,65,9,"696100","Hunter Goodman","C","COL",26,536,0.255,68,82,27,2,0.790,139,32,,,,,,,,,,
+131,104,9,"553993","Eugenio Suárez","3B","CIN",34,609,0.233,76,94,34,3,0.778,180,51,,,,,,,,,,
+132,555,9,"676477","Garrett Whitlock","RP","BOS",29,,,,,,,,,,67,4,74,3.36,1.15,3,19,9.94,17,67
+133,144,9,"668939","Adley Rutschman","C","BAL",28,552,0.253,67,65,17,1,0.754,87,62,,,,,,,,,,
+134,88,8,"691587","Eury Pérez","SP","MIA",22,,,,,,,,,,145,8,158,3.97,1.17,,49,9.81,,145
+135,131,8,"650633","Michael King","SP","SDP",30,,,,,,,,,,167,11,174,3.83,1.24,,59,9.38,,167
+136,722,8,"681911","Alex Vesia","RP","LAD",29,,,,,,,,,,63,4,79,3.57,1.16,1,26,11.29,20,63
+137,179,8,"669022","MacKenzie Gore","SP","TEX",27,,,,,,,,,,159,10,180,3.91,1.25,,60,10.19,,159
+138,156,8,"682842","Abner Uribe","RP","MIL",25,,,,,,,,,,69,4,82,3.13,1.20,17,31,10.70,9,69
+139,228,8,"663556","Shane McClanahan","SP","TBR",28,,,,,,,,,,129,8,135,3.70,1.19,,39,9.42,,129
+140,529,8,"664076","Garrett Cleavinger","RP","TBR",31,,,,,,,,,,63,4,78,3.43,1.19,6,25,11.14,16,63
+141,202,7,"808959","Munetaka Murakami","3B","CHW",26,555,0.220,72,75,29,10,0.780,186,77,,,,,,,,,,
+142,167,7,"622491","Luis Castillo","SP","SEA",33,,,,,,,,,,177,11,166,3.97,1.21,,50,8.44,,177
+143,94,7,"628452","Raisel Iglesias","RP","ATL",36,,,,,,,,,,66,4,70,3.68,1.14,26,18,9.55,4,66
+144,176,7,"802415","Chandler Simpson","LF/CF","TBR",25,468,0.284,56,35,1,42,0.662,50,26,,,,,,,,,,
+145,119,7,"656546","Jeff Hoffman","RP","TOR",33,,,,,,,,,,62,4,74,3.63,1.16,26,23,10.74,4,62
+146,90,7,"664854","Ryan Helsley","RP","BAL",31,,,,,,,,,,65,4,74,3.46,1.18,27,24,10.25,4,65
+147,185,7,"681082","Bryson Stott","2B","PHI",28,566,0.255,67,59,13,23,0.709,94,49,,,,,,,,,,
+148,180,7,"545361","Mike Trout","RF","LAA",34,550,0.235,72,73,27,3,0.805,166,74,,,,,,,,,,
+149,224,7,"656427","Jack Flaherty","SP","DET",30,,,,,,,,,,159,10,174,4.02,1.25,,55,9.85,,159
+150,136,7,"666157","Nick Lodolo","SP","CIN",28,,,,,,,,,,152,9,155,4.03,1.20,,42,9.18,,152
+151,580,6,"666374","Matt Brash","RP","SEA",27,,,,,,,,,,63,4,74,3.14,1.21,3,25,10.57,16,63
+152,248,6,"670955","Edwin Uceta","RP","TBR",28,,,,,,,,,,69,4,81,3.78,1.20,11,26,10.57,14,69
+153,180,6,"684007","Shota Imanaga","SP","CHC",32,,,,,,,,,,157,10,143,4.18,1.16,,35,8.20,,157
+154,130,6,"694037","Daniel Palencia","RP","CHC",26,,,,,,,,,,66,4,75,3.55,1.23,29,27,10.23,5,66
+155,159,6,"672386","Alejandro Kirk","C","TOR",27,476,0.269,54,59,15,1,0.768,58,47,,,,,,,,,,
+156,182,6,"669364","Xavier Edwards","2B/SS","MIA",26,566,0.278,67,44,4,26,0.698,79,47,,,,,,,,,,
+157,124,6,"592332","Kevin Gausman","SP","TOR",35,,,,,,,,,,179,11,175,4.07,1.23,,53,8.80,,179
+158,716,6,"642100","Gabe Speier","RP","SEA",30,,,,,,,,,,58,3,68,3.41,1.10,,17,10.55,15,58
+159,159,6,"656876","Drew Rasmussen","SP","TBR",30,,,,,,,,,,157,9,142,3.78,1.19,,42,8.14,,157
+160,173,6,"676254","Ryan Walker","RP","SFG",30,,,,,,,,,,64,4,67,3.52,1.19,26,20,9.42,5,64
+161,215,5,"605400","Aaron Nola","SP","PHI",32,,,,,,,,,,167,11,162,4.15,1.22,,45,8.73,,167
+162,143,5,"671732","Lawrence Butler","CF/RF","ATH",25,560,0.244,73,68,21,18,0.738,146,49,,,,,,,,,,
+163,180,5,"575929","Willson Contreras","1B","BOS",33,567,0.250,71,75,22,5,0.779,144,53,,,,,,,,,,
+164,125,5,"666176","Jo Adell","CF/RF","LAA",26,566,0.237,70,83,31,9,0.764,154,39,,,,,,,,,,
+165,633,5,"621381","Matt Strahm","RP","KCR",34,,,,,,,,,,63,4,69,3.71,1.14,1,19,9.86,17,63
+166,599,5,"678606","Jose A. Ferrer","RP","SEA",26,,,,,,,,,,67,4,65,3.22,1.18,2,20,8.73,17,67
+167,161,5,"645277","Ozzie Albies","2B","ATL",29,590,0.252,69,70,17,11,0.717,88,44,,,,,,,,,,
+168,90,5,"686948","Drake Baldwin","C","ATL",25,494,0.261,59,65,18,1,0.765,89,44,,,,,,,,,,
+169,573,5,"670970","Adrian Morejon","RP","SDP",27,,,,,,,,,,67,5,68,3.36,1.18,2,22,9.13,15,67
+170,108,4,"596115","Trevor Story","SS","BOS",33,608,0.248,74,75,21,23,0.716,164,37,,,,,,,,,,
+171,420,4,"694384","Nolan Schanuel","1B","LAA",24,573,0.262,68,56,12,6,0.738,79,64,,,,,,,,,,
+172,743,4,"669276","Dylan Lee","RP","ATL",31,,,,,,,,,,65,3,72,3.60,1.15,1,19,9.97,16,65
+173,724,4,"518585","Fernando Cruz","RP","NYY",36,,,,,,,,,,60,3,80,3.60,1.23,1,28,12.00,18,60
+174,94,4,"521692","Salvador Perez","C/1B","KCR",35,576,0.250,63,85,26,,0.743,119,29,,,,,,,,,,
+175,230,4,"672960","Kazuma Okamoto","3B","TOR",29,522,0.243,63,73,23,2,0.771,104,50,,,,,,,,,,
+176,152,4,"702056","Trey Yesavage","SP","TOR",22,,,,,,,,,,139,8,157,3.82,1.25,,58,10.17,1,139
+177,237,4,"593428","Xander Bogaerts","SS","SDP",33,565,0.264,65,60,13,16,0.722,100,46,,,,,,,,,,
+178,621,4,"640451","Hunter Harvey","RP","CHC",31,,,,,,,,,,54,3,58,3.33,1.13,5,16,9.67,14,54
+179,285,4,"680977","Brendan Donovan","2B/LF","SEA",29,556,0.266,66,58,12,5,0.738,78,49,,,,,,,,,,
+180,,4,"621345","A.J. Minter","RP","NYM",32,,,,,,,,,,52,3,59,3.46,1.15,2,18,10.21,18,52
+181,191,4,"666018","Jonathan Aranda","1B","TBR",27,552,0.261,67,72,20,2,0.781,139,54,,,,,,,,,,
+182,386,4,"676684","Will Vest","RP","DET",30,,,,,,,,,,66,4,67,3.41,1.20,6,21,9.14,14,66
+183,524,3,"656945","Tanner Scott","RP","LAD",31,,,,,,,,,,64,4,73,3.52,1.23,5,26,10.27,16,64
+184,149,3,"805300","Jakob Marsee","CF","MIA",24,563,0.230,69,52,12,32,0.691,124,63,,,,,,,,,,
+185,247,3,"702332","Caleb Durbin","3B","BOS",26,524,0.255,61,54,10,21,0.706,58,36,,,,,,,,,,
+186,120,3,"664126","Pete Fairbanks","RP","MIA",32,,,,,,,,,,62,4,64,3.48,1.21,26,22,9.29,4,62
+187,229,3,"605397","Joe Musgrove","SP","SDP",33,,,,,,,,,,149,9,139,3.99,1.20,,39,8.40,,149
+188,130,3,"669065","Kyle Stowers","LF/RF","MIA",28,578,0.241,69,78,25,4,0.766,163,54,,,,,,,,,,
+189,279,3,"543037","Gerrit Cole","SP","NYY",35,,,,,,,,,,121,8,123,3.94,1.18,,36,9.15,,121
+190,216,3,"671218","Heliot Ramos","LF","SFG",26,595,0.254,72,71,21,6,0.743,143,45,,,,,,,,,,
+191,310,3,"808982","Jung Hoo Lee","CF","SFG",27,567,0.269,66,58,9,9,0.731,65,44,,,,,,,,,,
+192,211,3,"695734","Daylen Lile","LF/RF","WSN",23,554,0.265,66,60,11,14,0.733,99,36,,,,,,,,,,
+193,191,3,"676440","Tanner Bibee","SP","CLE",27,,,,,,,,,,177,10,166,4.02,1.23,,53,8.44,,177
+194,266,3,"676395","Robert Garcia","RP","TEX",29,,,,,,,,,,62,4,67,3.63,1.23,18,22,9.73,8,62
+195,220,2,"663158","Robert Suarez","RP","ATL",35,,,,,,,,,,66,4,69,3.68,1.20,10,21,9.41,11,66
+196,269,2,"664761","Alec Bohm","3B","PHI",29,566,0.272,64,69,14,3,0.736,89,37,,,,,,,,,,
+197,196,2,"607074","Carlos Rodón","SP","NYY",33,,,,,,,,,,143,10,151,4.09,1.23,,53,9.50,,143
+198,188,2,"679529","Spencer Torkelson","1B","DET",26,611,0.232,73,80,26,2,0.753,158,65,,,,,,,,,,
+199,182,2,"624133","Ranger Suárez","SP","BOS",30,,,,,,,,,,169,11,149,3.73,1.26,,49,7.93,,169
+200,234,2,"571510","Matthew Boyd","SP","CHC",35,,,,,,,,,,159,10,144,3.96,1.21,,46,8.15,,159`;
+
+        function parseCSV(csv) {
+            const lines = csv.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+            
+            return lines.slice(1).map((line, idx) => {
+                const values = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let char of line) {
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        values.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                values.push(current.trim());
+                
+                const player = {};
+                headers.forEach((header, i) => {
+                    let value = values[i] || '';
+                    value = value.replace(/"/g, '');
+                    
+                    // Parse numbers
+                    if (value && !isNaN(value) && value !== '') {
+                        player[header] = parseFloat(value);
+                    } else {
+                        player[header] = value;
+                    }
+                });
+                
+                player.id = idx;
+                return player;
+            });
+        }
+
+        function DraftBoard() {
+            const [players, setPlayers] = useState([]);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [teamFilter, setTeamFilter] = useState('All Teams');
+            const [positionFilter, setPositionFilter] = useState('All');
+            const [hideDrafted, setHideDrafted] = useState(true);
+            const [draftedPlayers, setDraftedPlayers] = useState(new Set());
+            const [sortConfig, setSortConfig] = useState({ key: 'Rank', direction: 'asc' });
+
+            useEffect(() => {
+                const parsed = parseCSV(CSV_DATA);
+                setPlayers(parsed);
+            }, []);
+
+            const teams = useMemo(() => {
+                const teamSet = new Set(players.map(p => p.Team).filter(Boolean));
+                return ['All Teams', ...Array.from(teamSet).sort()];
+            }, [players]);
+
+            const toggleDrafted = (playerId) => {
+                setDraftedPlayers(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(playerId)) {
+                        newSet.delete(playerId);
+                    } else {
+                        newSet.add(playerId);
+                    }
+                    return newSet;
+                });
+            };
+
+            const handleSort = (key) => {
+                setSortConfig(prev => ({
+                    key,
+                    direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+                }));
+            };
+
+            const filteredAndSortedPlayers = useMemo(() => {
+                let filtered = players.filter(player => {
+                    // Search filter
+                    if (searchTerm && !player.Name?.toLowerCase().includes(searchTerm.toLowerCase())) {
+                        return false;
+                    }
+
+                    // Team filter
+                    if (teamFilter !== 'All Teams' && player.Team !== teamFilter) {
+                        return false;
+                    }
+
+                    // Position filter
+                    if (positionFilter !== 'All') {
+                        const positions = player.Position?.split('/') || [];
+                        if (!positions.includes(positionFilter)) {
+                            return false;
+                        }
+                    }
+
+                    // Hide drafted filter
+                    if (hideDrafted && draftedPlayers.has(player.id)) {
+                        return false;
+                    }
+
+                    return true;
+                });
+
+                // Sort
+                if (sortConfig.key) {
+                    filtered.sort((a, b) => {
+                        let aVal = a[sortConfig.key];
+                        let bVal = b[sortConfig.key];
+
+                        // Handle null/undefined
+                        if (aVal == null) return 1;
+                        if (bVal == null) return -1;
+
+                        // Numeric comparison
+                        if (typeof aVal === 'number' && typeof bVal === 'number') {
+                            return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                        }
+
+                        // String comparison
+                        const aStr = String(aVal).toLowerCase();
+                        const bStr = String(bVal).toLowerCase();
+                        if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
+                        if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
+                        return 0;
+                    });
+                }
+
+                return filtered;
+            }, [players, searchTerm, teamFilter, positionFilter, hideDrafted, draftedPlayers, sortConfig]);
+
+            const getStatClass = (stat, value, isLower = false) => {
+                if (value == null || value === '') return 'stat-neutral';
+                
+                const thresholds = {
+                    AVG: [0.280, 0.260],
+                    OPS: [0.850, 0.750],
+                    HR: [30, 20],
+                    RBI: [90, 70],
+                    R: [90, 70],
+                    SB: [20, 10],
+                    ERA: [3.50, 4.00],
+                    WHIP: [1.15, 1.30],
+                    W: [12, 8],
+                    SV: [25, 15],
+                    K: [180, 130],
+                };
+
+                if (!thresholds[stat]) return 'stat-neutral';
+
+                const [high, low] = thresholds[stat];
+                
+                if (isLower) {
+                    if (value <= high) return 'stat-high';
+                    if (value <= low) return 'stat-med';
+                    return 'stat-low';
+                } else {
+                    if (value >= high) return 'stat-high';
+                    if (value >= low) return 'stat-med';
+                    return 'stat-low';
+                }
+            };
+
+            const formatValue = (value) => {
+                if (value == null || value === '') return '-';
+                return value;
+            };
+
+            const getSortClass = (key) => {
+                if (sortConfig.key !== key) return 'sortable';
+                return sortConfig.direction === 'asc' ? 'sorted-asc' : 'sorted-desc';
+            };
+
+            return (
+                <div className="container">
+                    <div className="controls">
+                        <input
+                            type="text"
+                            className="search-box"
+                            placeholder="Find player"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        
+                        <select 
+                            className="select-box"
+                            value={teamFilter}
+                            onChange={(e) => setTeamFilter(e.target.value)}
+                        >
+                            {teams.map(team => (
+                                <option key={team} value={team}>{team}</option>
+                            ))}
+                        </select>
+
+                        <div className="toggle-container">
+                            <label className="toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={!hideDrafted}
+                                    onChange={(e) => setHideDrafted(!e.target.checked)}
+                                />
+                                <span className="slider"></span>
+                            </label>
+                            <span>Hide drafted</span>
+                        </div>
+
+                        <div className="position-filters">
+                            {POSITIONS.map(pos => (
+                                <button
+                                    key={pos}
+                                    className={`pos-btn ${positionFilter === pos ? 'active' : ''}`}
+                                    onClick={() => setPositionFilter(pos)}
+                                >
+                                    {pos}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="table-container">
+                        {filteredAndSortedPlayers.length === 0 ? (
+                            <div className="empty-state">No players found</div>
+                        ) : (
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th className="draft-col">Draft</th>
+                                        <th className={getSortClass('Rank')} onClick={() => handleSort('Rank')}>Rk</th>
+                                        <th className={getSortClass('ADP')} onClick={() => handleSort('ADP')}>ADP</th>
+                                        <th className={getSortClass('$')} onClick={() => handleSort('$')}>$</th>
+                                        <th className={getSortClass('Name')} onClick={() => handleSort('Name')}>Name</th>
+                                        <th>Edit</th>
+                                        <th className={getSortClass('Age')} onClick={() => handleSort('Age')}>Age</th>
+                                        <th className={getSortClass('Impact')} onClick={() => handleSort('Impact')}>Impact</th>
+                                        <th className={getSortClass('Pk24')} onClick={() => handleSort('Pk24')}>Pk24</th>
+                                        <th className={getSortClass('Pk38')} onClick={() => handleSort('Pk38')}>Pk38</th>
+                                        <th className={getSortClass('PA')} onClick={() => handleSort('PA')}>PA</th>
+                                        <th className={getSortClass('AVG')} onClick={() => handleSort('AVG')}>AVG</th>
+                                        <th className={getSortClass('R')} onClick={() => handleSort('R')}>R</th>
+                                        <th className={getSortClass('RBI')} onClick={() => handleSort('RBI')}>RBI</th>
+                                        <th className={getSortClass('HR')} onClick={() => handleSort('HR')}>HR</th>
+                                        <th className={getSortClass('SB')} onClick={() => handleSort('SB')}>SB</th>
+                                        <th className={getSortClass('OPS')} onClick={() => handleSort('OPS')}>OPS</th>
+                                        <th className={getSortClass('SO')} onClick={() => handleSort('SO')}>SO</th>
+                                        <th className={getSortClass('BB')} onClick={() => handleSort('BB')}>BB</th>
+                                        <th className={getSortClass('IP')} onClick={() => handleSort('IP')}>IP</th>
+                                        <th className={getSortClass('W')} onClick={() => handleSort('W')}>W</th>
+                                        <th className={getSortClass('SO')} onClick={() => handleSort('SO')}>K</th>
+                                        <th className={getSortClass('ERA')} onClick={() => handleSort('ERA')}>ERA</th>
+                                        <th className={getSortClass('WHIP')} onClick={() => handleSort('WHIP')}>WHIP</th>
+                                        <th className={getSortClass('SV')} onClick={() => handleSort('SV')}>SV</th>
+                                        <th className={getSortClass('K/9')} onClick={() => handleSort('K/9')}>K/9</th>
+                                        <th className={getSortClass('HLD')} onClick={() => handleSort('HLD')}>HLD</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredAndSortedPlayers.map(player => {
+                                        const isDrafted = draftedPlayers.has(player.id);
+                                        const positions = player.Position?.split('/') || [];
+                                        const primaryPos = positions[0] || '';
+                                        
+                                        return (
+                                            <tr key={player.id} className={isDrafted ? 'drafted' : ''}>
+                                                <td className="draft-col">
+                                                    <button 
+                                                        className={`draft-btn ${isDrafted ? 'remove' : 'add'}`}
+                                                        onClick={() => toggleDrafted(player.id)}
+                                                    >
+                                                        {isDrafted ? '✖' : '+'}
+                                                    </button>
+                                                </td>
+                                                <td>{player.Rank}</td>
+                                                <td>{formatValue(player.ADP)}</td>
+                                                <td>${formatValue(player.$)}</td>
+                                                <td className="name-cell">
+                                                    <span className={`pos-badge pos-${primaryPos}`}>
+                                                        {player.Position}
+                                                    </span>
+                                                    {player.Name}
+                                                    <span className="team-badge">{player.Team}</span>
+                                                </td>
+                                                <td>➕</td>
+                                                <td>{formatValue(player.Age)}</td>
+                                                <td>{formatValue(player.Impact)}</td>
+                                                <td>{formatValue(player.Pk24)}</td>
+                                                <td>{formatValue(player.Pk38)}</td>
+                                                <td>{formatValue(player.PA)}</td>
+                                                <td className={getStatClass('AVG', player.AVG)}>{formatValue(player.AVG)}</td>
+                                                <td className={getStatClass('R', player.R)}>{formatValue(player.R)}</td>
+                                                <td className={getStatClass('RBI', player.RBI)}>{formatValue(player.RBI)}</td>
+                                                <td className={getStatClass('HR', player.HR)}>{formatValue(player.HR)}</td>
+                                                <td className={getStatClass('SB', player.SB)}>{formatValue(player.SB)}</td>
+                                                <td className={getStatClass('OPS', player.OPS)}>{formatValue(player.OPS)}</td>
+                                                <td>{formatValue(player.SO)}</td>
+                                                <td>{formatValue(player.BB)}</td>
+                                                <td>{formatValue(player.IP)}</td>
+                                                <td className={getStatClass('W', player.W)}>{formatValue(player.W)}</td>
+                                                <td className={getStatClass('K', player.K)}>{formatValue(player.K)}</td>
+                                                <td className={getStatClass('ERA', player.ERA, true)}>{formatValue(player.ERA)}</td>
+                                                <td className={getStatClass('WHIP', player.WHIP, true)}>{formatValue(player.WHIP)}</td>
+                                                <td className={getStatClass('SV', player.SV)}>{formatValue(player.SV)}</td>
+                                                <td>{formatValue(player['K/9'])}</td>
+                                                <td>{formatValue(player.HLD)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<DraftBoard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
